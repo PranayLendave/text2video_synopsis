@@ -78,10 +78,6 @@ Run `main.py` with the following example:
 ---
 
 ## **Related Work**  
-- [Text2Segment Video](https://github.com/mithunparab/text2segment_video)  
+- [Video Synopsis](https://github.com/mithunparab/video_synopsis)  
 - [Microsoft Florence-2 Large](https://huggingface.co/microsoft/Florence-2-large)  
 - [Ultralytics](https://github.com/ultralytics)  
-
----
-
-This README provides an overview, clear instructions for setup and usage, and references for further exploration.
