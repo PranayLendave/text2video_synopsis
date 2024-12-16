@@ -130,7 +130,7 @@ with st.form("input_form"):
 
         classes = st.text_input(
             "Enter Detection Query:",
-            value="people",
+            value="people,people",
             help="For OWL-ViT: Enter comma-separated classes. For Florence-2-large: Use a descriptive sentence."
         )
 
