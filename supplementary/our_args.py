@@ -25,7 +25,7 @@ parser.add_argument(
     "-cs", "--classes", 
     help="Classes/sentence for object detection (default: 'people, person')", 
     type=str,
-    default="people, person" 
+    default="people,person" 
 )
 parser.add_argument(
     "-e", "--ext", 
