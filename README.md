@@ -1,7 +1,3 @@
-Here's a concise and well-structured README file for your project:
-
----
-
 # **Text2Video Synopsis**  
 
 A project that generates concise video synopses by detecting, segmenting, and summarizing objects in video footage. It uses **OWL-ViT** for object detection, **SAM** for segmentation, and a custom video synopsis algorithm to produce optimized outputs.
