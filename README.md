@@ -1,6 +1,7 @@
 # **Text2Video Synopsis**  
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1taxvdTp_r2x1qt7i0lWt8BnM8AyfLY4c?usp=sharing)
 
-A project that generates concise video synopses by detecting, segmenting, and summarizing objects in video footage. It uses **OWL-ViT** or **Florence 2** for object detection, **SAM** for segmentation, and a custom video synopsis algorithm to produce optimized outputs.
+This project is an advanced video analysis tool that generates comprehensive video synopses by leveraging state-of-the-art computer vision techniques. It provides a powerful solution for intelligent video summarization, particularly useful in surveillance, content analysis, and object tracking scenarios. It uses **OWL-ViT** or **Florence 2** for object detection, **SAM** for segmentation, and a custom video synopsis algorithm to produce optimized outputs.
 
 
 
@@ -67,7 +68,12 @@ python main.py \
 ## **Features**  
 1. **Motion Detection**: Focuses processing on video segments with significant motion.  
 2. **Object and Action Detection**: Uses state-of-the-art models like Florence and OWL-ViT for object detection, and SAM for segmentation.  
-3. **Video and Mask Output**: Generates annotated video outputs along with mask videos showing detected segments.
+3. **Flexible Synopsis Generation**: Creates optimized video summaries based on user-defined object criteria
+4. **Versatile Use Cases**:
+
+   - Surveillance video summarization
+   - Targeted object tracking
+   - Intelligent video content analysis
 
 
 
