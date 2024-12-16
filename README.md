@@ -54,8 +54,8 @@ python main.py \
 #### **Parameters and Examples**  
 - **`--input_model`**: Detection model to use (`OWL-ViT` or `Florence-2-large`).  
 - **`--video`**: Path to the input video file.  
-- **`--classes`**: Provide a prompt for Object classes to detect.  
-   - For Florence:  sentence, e.g.,  
+- **`--classes`**: Object classes to detect.  
+   - For Florence: Provide a prompt sentence, e.g.,  
      - Simple ones `"People in the video" , "Car on the road"`  
      - Complex ones `"People with black t-shirt" , "People with suitcase"`  
    - For OWL-ViT: Provide an **OPEN_VOCABULARY_DETECTION** comma-separated classes, e.g.,  
