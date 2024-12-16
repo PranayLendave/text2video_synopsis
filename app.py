@@ -9,7 +9,7 @@ from main import main
 from supplementary.our_args import args
 
 # Setting the page configuration with an icon
-image_directory = "../supplementary/vs_clip.png"
+image_directory = "./supplementary/vs_clip.png"
 image = Image.open(image_directory)
 PAGE_CONFIG = {
     "page_title": "Video Synopsis",
