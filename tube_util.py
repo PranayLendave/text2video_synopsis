@@ -6,6 +6,161 @@ from PIL import Image
 from tqdm import tqdm
 from collections import defaultdict, deque
 
+from collections import deque
+import numpy as np
+import cv2
+
+def create_composite_image(tube_queues, bg_shape):
+    """
+    Create a composite image from the tube data while managing overlaps and resizing tubes if needed.
+
+    Args:
+        tube_queues (dict): Dictionary containing tube frames as deques.
+        bg_shape (tuple): Shape of the background image (height, width, channels).
+
+    Returns:
+        np.array: Composite image with all tubes blended.
+        np.array: Composite mask indicating blended regions.
+    """
+    # Initialize composite image and mask
+    composite_image = np.zeros(bg_shape, dtype=np.uint8)
+    composite_mask = np.zeros(bg_shape[:2], dtype=bool)
+
+    # Track processed tubes
+    processed = set()
+
+    # Iterate through the active tubes
+    active_tubes = [(Tube, frames[0]) for Tube, frames in tube_queues.items() if frames]
+
+    # Track already checked overlaps
+    checked_overlaps = set()
+
+    # Process each tube
+    for i, (Tube, frame) in enumerate(active_tubes):
+        n, x1, x2, y1, y2, image, mask = frame
+
+        # Check overlap with other tubes
+        for j, (other_Tube, other_frame) in enumerate(active_tubes):
+            if Tube == other_Tube:
+                continue  # Skip self
+
+            pair_key = frozenset({Tube, other_Tube})
+            if pair_key in checked_overlaps:
+                continue  # Skip already checked pair
+
+            # Mark the pair as checked
+            checked_overlaps.add(pair_key)
+
+            # Extract bounding box for the other tube
+            other_n, other_x1, other_x2, other_y1, other_y2, other_image, other_mask = other_frame
+
+            # Check for overlap
+            if check_overlap(x1, x2, y1, y2, other_x1, other_x2, other_y1, other_y2):
+                # Resize both tubes to reduce overlap
+                image, mask, x1, x2, y1, y2 = resize_tube(image, mask, x1, x2, y1, y2)
+                other_image, other_mask, other_x1, other_x2, other_y1, other_y2 = resize_tube(
+                    other_image, other_mask, other_x1, other_x2, other_y1, other_y2
+                )
+        
+
+        try:
+            # Ensure mask has 3 dimensions for broadcasting
+            if mask.ndim == 2:
+                mask = mask[:, :, None]  
+
+            # Define valid region for placing the tube
+            valid_region = (slice(y1, y2), slice(x1, x2))
+
+            # Check for shape mismatches before applying np.where
+            if (
+                composite_image[valid_region].shape[:2] != mask.shape[:2] or
+                mask.shape[:2] != image.shape[:2]
+            ):
+                print(f"Skipping frame {n} due to shape mismatch: "
+                      f"image={image.shape}, mask={mask.shape}, "
+                      f"region={composite_image[valid_region].shape}")
+                continue  # Skip this frame
+
+            # Composite the image and mask
+            composite_image[valid_region] = np.where(
+                mask, image, composite_image[valid_region]
+            )
+            composite_mask[valid_region] = np.logical_or(
+                composite_mask[valid_region], mask[..., 0].astype(bool)
+            )
+
+        except Exception as e:
+            # Handle unexpected errors gracefully
+            print(f"Error processing frame {n}: {e}")
+            continue  # Skip this frame and move to the next
+
+
+        # Blend current tube into composite image
+        # if mask.ndim == 2:
+        #     mask = mask[:, :, None]  # Ensure mask has 3 dimensions for broadcasting
+        # valid_region = (slice(y1, y2), slice(x1, x2))
+        # composite_image[valid_region] = np.where(
+        #     mask, image, composite_image[valid_region]
+        # )
+        # composite_mask[valid_region] = np.logical_or(
+        #     composite_mask[valid_region], mask[..., 0].astype(bool)
+        # )
+
+        # Mark the tube as processed and remove the frame
+        processed.add(Tube)
+        tube_queues[Tube].popleft()
+
+    return composite_image, composite_mask
+
+
+def check_overlap(x1, x2, y1, y2, other_x1, other_x2, other_y1, other_y2):
+    """Check if two bounding boxes overlap significantly."""
+    # Calculate intersection
+    xi1 = max(x1, other_x1)
+    yi1 = max(y1, other_y1)
+    xi2 = min(x2, other_x2)
+    yi2 = min(y2, other_y2)
+
+    inter_area = max(xi2 - xi1, 0) * max(yi2 - yi1, 0)
+    box1_area = (x2 - x1) * (y2 - y1)
+    box2_area = (other_x2 - other_x1) * (other_y2 - other_y1)
+
+    # Calculate IoU (Intersection over Union)
+    union_area = box1_area + box2_area - inter_area
+    iou = inter_area / union_area if union_area > 0 else 0
+
+    return iou > 0.1  # Overlap threshold (10% IoU)
+
+
+def resize_tube(image, mask, x1, x2, y1, y2, min_size=50, reduction=2):
+    """
+    Resize a tube's image and mask to reduce its dimensions slightly.
+
+    Args:
+        image (np.array): Tube's image region.
+        mask (np.array): Tube's mask.
+        x1, x2, y1, y2 (int): Tube's bounding box coordinates.
+        min_size (int): Minimum size for width and height.
+        reduction (int): Factor to reduce dimensions.
+
+    Returns:
+        Tuple: Resized image, resized mask, and updated bounding box coordinates.
+    """
+    new_width = max((x2 - x1) // reduction, min_size)
+    new_height = max((y2 - y1) // reduction, min_size)
+
+    # Resize image and mask
+    resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    resized_mask = cv2.resize(mask, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+    # Adjust coordinates to center resized tube
+    x1 += (x2 - x1 - new_width) // 2
+    x2 = x1 + new_width
+    y1 += (y2 - y1 - new_height) // 2
+    y2 = y1 + new_height
+
+    return resized_image, resized_mask, x1, x2, y1, y2
+
 
 def blend_roi_on_background(background, roi, roi_mask, x1, x2, y1, y2):
     # Clamping ROI coordinates to ensure they are within the bounds of the background image
@@ -119,34 +274,34 @@ def Tube_mod(args, video, bgimg=None, final='../masks', dir1 = "*", dir2 = "../o
             video.write(background) 
 
 
-def check_overlap(x1, x2, y1, y2, other_x1, other_x2, other_y1, other_y2):
-    """ Calculate the overlap between two bounding boxes. """
-    # Calculate the intersection
-    xi1 = max(x1, other_x1)
-    yi1 = max(y1, other_y1)
-    xi2 = min(x2, other_x2)
-    yi2 = min(y2, other_y2)
-    inter_area = max(xi2 - xi1, 0) * max(yi2 - yi1, 0)
-    # Calculate the union area
-    box1_area = (x2 - x1) * (y2 - y1)
-    box2_area = (other_x2 - other_x1) * (other_y2 - other_y1)
-    union_area = box1_area + box2_area - inter_area
-    # Calculate the IoU (Intersection over Union)
-    iou = inter_area / union_area
-    return iou > 0.1  # Allow for up to 10% overlap
+# def check_overlap(x1, x2, y1, y2, other_x1, other_x2, other_y1, other_y2):
+#     """ Calculate the overlap between two bounding boxes. """
+#     # Calculate the intersection
+#     xi1 = max(x1, other_x1)
+#     yi1 = max(y1, other_y1)
+#     xi2 = min(x2, other_x2)
+#     yi2 = min(y2, other_y2)
+#     inter_area = max(xi2 - xi1, 0) * max(yi2 - yi1, 0)
+#     # Calculate the union area
+#     box1_area = (x2 - x1) * (y2 - y1)
+#     box2_area = (other_x2 - other_x1) * (other_y2 - other_y1)
+#     union_area = box1_area + box2_area - inter_area
+#     # Calculate the IoU (Intersection over Union)
+#     iou = inter_area / union_area
+#     return iou > 0.1  # Allow for up to 10% overlap
 
-def resize_tube(image, mask, x1, x2, y1, y2, min_size=50, reduction=2):
-    """Resize the tube to reduce its dimensions slightly."""
-    new_width = max((x2 - x1) // reduction, min_size)
-    new_height = max((y2 - y1) // reduction, min_size)
-    if new_width != (x2 - x1) or new_height != (y2 - y1):
-        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
-        mask = cv2.resize(mask, (new_width, new_height), interpolation=cv2.INTER_AREA)
-        x1 += (x2 - x1 - new_width) // 2
-        x2 = x1 + new_width
-        y1 += (y2 - y1 - new_height) // 2
-        y2 = y1 + new_height
-    return image, mask, x1, x2, y1, y2
+# def resize_tube(image, mask, x1, x2, y1, y2, min_size=50, reduction=2):
+#     """Resize the tube to reduce its dimensions slightly."""
+#     new_width = max((x2 - x1) // reduction, min_size)
+#     new_height = max((y2 - y1) // reduction, min_size)
+#     if new_width != (x2 - x1) or new_height != (y2 - y1):
+#         image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+#         mask = cv2.resize(mask, (new_width, new_height), interpolation=cv2.INTER_AREA)
+#         x1 += (x2 - x1 - new_width) // 2
+#         x2 = x1 + new_width
+#         y1 += (y2 - y1 - new_height) // 2
+#         y2 = y1 + new_height
+#     return image, mask, x1, x2, y1, y2
 
 # def create_composite_image(tube_queues, bg_shape):
 #     composite_image = np.zeros(bg_shape, dtype=np.uint8)
@@ -167,44 +322,44 @@ def resize_tube(image, mask, x1, x2, y1, y2, min_size=50, reduction=2):
 
 #     return composite_image, composite_mask
 
-def create_composite_image(tube_queues, bg_shape):
-    composite_image = np.zeros(bg_shape, dtype=np.uint8)
-    composite_mask = np.zeros(bg_shape[:2], dtype=bool)
-    processed = set()
+# def create_composite_image(tube_queues, bg_shape):
+#     composite_image = np.zeros(bg_shape, dtype=np.uint8)
+#     composite_mask = np.zeros(bg_shape[:2], dtype=bool)
+#     processed = set()
 
-    # Create a list of tubes and their frames for processing
-    active_tubes = [(Tube, frames[0]) for Tube, frames in tube_queues.items() if frames]
+#     # Create a list of tubes and their frames for processing
+#     active_tubes = [(Tube, frames[0]) for Tube, frames in tube_queues.items() if frames]
 
-    # Using a more efficient structure to track overlaps
-    overlap_checked = set()
+#     # Using a more efficient structure to track overlaps
+#     overlap_checked = set()
 
-    for i, (Tube, frame) in enumerate(active_tubes):
-        x1, x2, y1, y2, image, mask = frame[1:]
-        key = frozenset({Tube})
+#     for i, (Tube, frame) in enumerate(active_tubes):
+#         x1, x2, y1, y2, image, mask = frame[1:]
+#         key = frozenset({Tube})
 
-        for j, (other_Tube, other_frame) in enumerate(active_tubes):
-            if i != j:
-                other_key = frozenset({Tube, other_Tube})
-                if other_key in overlap_checked:
-                    continue
+#         for j, (other_Tube, other_frame) in enumerate(active_tubes):
+#             if i != j:
+#                 other_key = frozenset({Tube, other_Tube})
+#                 if other_key in overlap_checked:
+#                     continue
 
-                overlap_checked.add(other_key)
-                other_x1, other_x2, other_y1, other_y2, other_image, other_mask = other_frame[1:]
+#                 overlap_checked.add(other_key)
+#                 other_x1, other_x2, other_y1, other_y2, other_image, other_mask = other_frame[1:]
 
-                if check_overlap(x1, x2, y1, y2, other_x1, other_x2, other_y1, other_y2):
-                    image, mask, x1, x2, y1, y2 = resize_tube(image, mask, x1, x2, y1, y2)
-                    other_image, other_mask, other_x1, other_x2, other_y1, other_y2 = resize_tube(other_image, other_mask, other_x1, other_x2, other_y1, other_y2)
+#                 if check_overlap(x1, x2, y1, y2, other_x1, other_x2, other_y1, other_y2):
+#                     image, mask, x1, x2, y1, y2 = resize_tube(image, mask, x1, x2, y1, y2)
+#                     other_image, other_mask, other_x1, other_x2, other_y1, other_y2 = resize_tube(other_image, other_mask, other_x1, other_x2, other_y1, other_y2)
 
-        if Tube not in processed:
-            if mask.ndim == 2:
-                mask = mask[:, :, None]
-            valid_region = (slice(y1, y2), slice(x1, x2))
-            composite_image[valid_region] = np.where(mask, image, composite_image[valid_region])
-            composite_mask[valid_region] = np.logical_or(composite_mask[valid_region], mask[..., 0].astype(bool))
-            processed.add(Tube)
-            tube_queues[Tube].popleft()
+#         if Tube not in processed:
+#             if mask.ndim == 2:
+#                 mask = mask[:, :, None]
+#             valid_region = (slice(y1, y2), slice(x1, x2))
+#             composite_image[valid_region] = np.where(mask, image, composite_image[valid_region])
+#             composite_mask[valid_region] = np.logical_or(composite_mask[valid_region], mask[..., 0].astype(bool))
+#             processed.add(Tube)
+#             tube_queues[Tube].popleft()
 
-    return composite_image, composite_mask
+#     return composite_image, composite_mask
 
 
 def blend_on_background(background, composite_image, composite_mask):
