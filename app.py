@@ -22,9 +22,8 @@ st.set_page_config(**PAGE_CONFIG)
 def setup_environment(args):
     # Path settings and directory cleanup
     output_path = args["output"]
-    final = args["masks"]
-    synopsis_frames = args["synopsis_frames"]
-    for path in [output_path, synopsis_frames, final]:
+    optimized_tubes_dir = "optimized_tubes"
+    for path in [output_path, optimized_tubes_dir]:
         if os.path.exists(path):
             shutil.rmtree(path)
         os.mkdir(path)
