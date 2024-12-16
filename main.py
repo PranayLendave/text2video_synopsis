@@ -199,8 +199,8 @@ def main(args: dict,
 if __name__ == "__main__":
     # Set paths
     output_path = args["output"]
+    optimized_tubes_dir = "optimized_tubes"
     final = args["masks"]
-    synopsis_frames = args["synopsis_frames"]
     energy_opt = args["energy_optimization"]
     epochs = args["epochs"]
 
@@ -211,7 +211,7 @@ if __name__ == "__main__":
         os.mkdir(path)
     
     # Create or clear directories
-    for path in [output_path, synopsis_frames, final]:
+    for path in [output_path, optimized_tubes_dir]:
         prepare_directory(path)
 
     os.chdir(output_path)  # Change to output directory
