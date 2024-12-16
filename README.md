@@ -1,6 +1,6 @@
 # **Text2Video Synopsis**  
 
-A project that generates concise video synopses by detecting, segmenting, and summarizing objects in video footage. It uses **OWL-ViT** for object detection, **SAM** for segmentation, and a custom video synopsis algorithm to produce optimized outputs.
+A project that generates concise video synopses by detecting, segmenting, and summarizing objects in video footage. It uses **OWL-ViT** or **Florence 2** for object detection, **SAM** for segmentation, and a custom video synopsis algorithm to produce optimized outputs.
 
 ---
 
@@ -18,7 +18,7 @@ A project that generates concise video synopses by detecting, segmenting, and su
 ---
 
 ## **Colab Notebook**  
-Run the project using this [Google Colab Notebook](#) (replace `#` with your Colab link).
+Run the project using this [Google Colab Notebook](https://colab.research.google.com/drive/1taxvdTp_r2x1qt7i0lWt8BnM8AyfLY4c?usp=sharing).
 
 ---
 
@@ -35,7 +35,7 @@ pip install -r requirements.txt
 ### **1. Streamlit App**  
 To interactively run the project on a Streamlit-based web UI:  
 ```bash
-!streamlit run ./app.py & npx localtunnel --port 8501
+streamlit run ./app.py & npx localtunnel --port 8501
 ```  
 This will expose the Streamlit app through a localtunnel link.  
 
@@ -44,7 +44,7 @@ This will expose the Streamlit app through a localtunnel link.
 ### **2. Running the Main Script**  
 Run `main.py` with the following example:  
 ```bash
-!python main.py \
+python main.py \
   --input_model "OWL-ViT" \
   --video "/content/text2video_synopsis/all_rush_video.mp4" \
   --classes "people,person" \
