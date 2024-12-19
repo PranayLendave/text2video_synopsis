@@ -79,7 +79,8 @@ python main.py \
 
 ## **To-Do**  
 - [x] Web UI (Streamlit App)  
-- [ ] Robust Video Synopsis  
+- [ ] Robust Video Synopsis
+- [ ] Add diagram explaining the project - input(multiple images showing 24 hour cctv video) output(5 frames of output video and adding a gif for the same)
 
 
 
